@@ -30,9 +30,9 @@
 
 
     function areThereEmptyFeedElements() {
-      for(element_id of feed_elements) {
-        element = document.getElementById(element_id)
-        if (element.value.length == 0) {
+      for(li_elm of feed_elements) {
+        feed_elm = li_elm.children[0]
+        if (feed_elm.value.length == 0) {
           return true
         }
       }
@@ -42,14 +42,23 @@
 
     function createNewFeedInputField() {
       feed_count += 1
-      original_feed_list.add += `<li id="li_${feed_count}"><input type="text" id="feed_${feed_count}"></li>`
-      let input_element = document.getElementById(`feed_${feed_count}`)
-      feed_elements.push(`feed_${feed_count}`)
-      input_element.addEventListener('input', function(evnt) {
+      const li_elm = document.createElement("li")
+      li_elm.setAttribute("id", `li_${feed_count}`)
+
+      const input_elm = document.createElement("input")
+      input_elm.setAttribute("id", `feed_${feed_count}`)
+      input_elm.setAttribute("type", "text")
+      input_elm.addEventListener('input', function(evnt) {
         if(!areThereEmptyFeedElements()) {
           createNewFeedInputField()
         }
       });
+
+      li_elm.appendChild(input_elm)
+      original_feed_list.appendChild(li_elm)
+
+
+      feed_elements.push(li_elm)
     }
 
     createNewFeedInputField();

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+</head>
+
+<body>
+
+  <h1>ICAL Calendar feed merger.</h1>
+  <p>
+    1. Enter the ical calendar feeds you want to merge in the fields below.
+    <br>
+  <ol id="original_feed_list">
+
+  </ol>
+  </p>
+
+
+  <p>
+    2. Then grap this merged feed and subscribe to it:
+    <br>
+    Combined Feed: <input id='combinedFeedUrlText'>
+
+  </p>
+
+  <script>
+    const original_feed_list = document.getElementById("original_feed_list");
+    let feed_elements = []
+    let feed_count = 0
+
+
+    function areThereEmptyFeedElements() {
+      for(element_id of feed_elements) {
+        element = document.getElementById(element_id)
+        if (element.value.length == 0) {
+          return true
+        }
+      }
+      return false
+    }
+
+
+    function createNewFeedInputField() {
+      feed_count += 1
+      original_feed_list.add += `<li id="li_${feed_count}"><input type="text" id="feed_${feed_count}"></li>`
+      let input_element = document.getElementById(`feed_${feed_count}`)
+      feed_elements.push(`feed_${feed_count}`)
+      input_element.addEventListener('input', function(evnt) {
+        if(!areThereEmptyFeedElements()) {
+          createNewFeedInputField()
+        }
+      });
+    }
+
+    createNewFeedInputField();
+  </script>
+
+
+</body>
+
+</html>

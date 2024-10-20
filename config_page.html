@@ -19,8 +19,9 @@
   <p>
     2. Then grap this merged feed and subscribe to it:
     <br>
-    Combined Feed: <input id='combined_feed_url'>
-
+    <input id='combined_feed_url'>
+    <br><br>
+    3. Copy your combined feed url in field aboth to edit it.
   </p>
 
   <script>
@@ -66,17 +67,17 @@
     }
 
 
-    function createNewFeedInputField() {
+    function createNewFeedInputField(new_value) {
       feed_count += 1
       const li_elm = document.createElement("li")
       li_elm.setAttribute("id", `li_${feed_count}`)
 
       const input_elm = document.createElement("input")
-      input_elm.setAttribute("id", `feed_${feed_count}`)
       input_elm.setAttribute("type", "text")
+      input_elm.value = new_value
       input_elm.addEventListener('input', function (evnt) {
         if (countOfEmptyFeedElements() == 0) {
-          createNewFeedInputField();
+          createNewFeedInputField("");
         } else if (2 <= countOfEmptyFeedElements()) {
           removeOneEmpytFeedElement();
         }
@@ -89,7 +90,43 @@
 
     }
 
-    createNewFeedInputField();
+
+    function reconstructOriginalFeedUrls() {
+      feed_list.innerHTML = "";
+
+      try {
+        const url_params = new URL(combined_feed_url.value).searchParams;
+        let param_count = 0;
+
+
+
+        while (true) {
+          const param = url_params.get("p" + param_count)
+          if (param == null) {
+            break;
+          }
+
+          createNewFeedInputField(param);
+
+          param_count++;
+        }
+
+        createNewFeedInputField("");
+
+      } catch (e) {
+        console.log(e)
+        createNewFeedInputField("");
+      }
+    }
+
+
+
+
+    combined_feed_url.addEventListener('input', function (event) {
+      reconstructOriginalFeedUrls();
+    });
+
+    reconstructOriginalFeedUrls();
 
   </script>
 

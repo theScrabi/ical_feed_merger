@@ -19,24 +19,50 @@
   <p>
     2. Then grap this merged feed and subscribe to it:
     <br>
-    Combined Feed: <input id='combinedFeedUrlText'>
+    Combined Feed: <input id='combined_feed_url'>
 
   </p>
 
   <script>
     const original_feed_list = document.getElementById("original_feed_list");
-    let feed_elements = []
     let feed_count = 0
+    const feed_list = document.getElementById("original_feed_list");
+    const combined_feed_url = document.getElementById("combined_feed_url");
 
-
-    function areThereEmptyFeedElements() {
-      for(li_elm of feed_elements) {
+    function countOfEmptyFeedElements() {
+      let count = 0;
+      for (li_elm of feed_list.children) {
         feed_elm = li_elm.children[0]
         if (feed_elm.value.length == 0) {
-          return true
+          count++;
         }
       }
-      return false
+      return count;
+    }
+
+    function removeOneEmpytFeedElement() {
+      for (li_elm of feed_list.children) {
+        if (li_elm.children[0].value.length == 0) {
+          feed_list.removeChild(li_elm)
+          return;
+        }
+      }
+    }
+
+    function buildOutputFeed() {
+      const base_url = "https://localhost:5000?"
+      let parameter_list = []
+      let param_count = 0;
+      for (li_elm of feed_list.children) {
+        const feed_url = li_elm.children[0].value
+        if (feed_url.length !== 0) {
+          const escaped_feed_url = encodeURIComponent(feed_url);
+          parameter_list.push("p" + param_count + "=" + escaped_feed_url);
+          param_count++;
+        }
+      }
+      const resulting_feed_url = base_url + parameter_list.join("&");
+      combined_feed_url.value = resulting_feed_url;
     }
 
 
@@ -48,20 +74,23 @@
       const input_elm = document.createElement("input")
       input_elm.setAttribute("id", `feed_${feed_count}`)
       input_elm.setAttribute("type", "text")
-      input_elm.addEventListener('input', function(evnt) {
-        if(!areThereEmptyFeedElements()) {
-          createNewFeedInputField()
+      input_elm.addEventListener('input', function (evnt) {
+        if (countOfEmptyFeedElements() == 0) {
+          createNewFeedInputField();
+        } else if (2 <= countOfEmptyFeedElements()) {
+          removeOneEmpytFeedElement();
         }
+
+        buildOutputFeed();
       });
 
       li_elm.appendChild(input_elm)
       original_feed_list.appendChild(li_elm)
 
-
-      feed_elements.push(li_elm)
     }
 
     createNewFeedInputField();
+
   </script>
 
 

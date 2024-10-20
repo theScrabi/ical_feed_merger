@@ -10,6 +10,7 @@
 from flask import Flask, Response, request
 from typing import List
 import requests
+import re
 
 app = Flask(__name__)
 
@@ -26,7 +27,7 @@ def get_urls(request) -> List[str]:
     return urls
 
 def load_ics(url:str) -> str:
-    r = requests.get(url.replace("webcal", 'https'))
+    r = requests.get(re.sub(r'^webcal', 'https', url))
     return r.text
 
 def get_all_calendars(urls:List[str]) -> List[str]:

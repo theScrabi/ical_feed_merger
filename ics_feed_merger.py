@@ -1,5 +1,12 @@
 #!/usr/bin/python3
 
+# ICS Feed Merger
+#
+# @author Christian Schabesberger
+#
+# Copyright (C) Christian Schabesberger 2024
+
+
 from flask import Flask, Response, request
 from typing import List
 import requests

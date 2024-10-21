@@ -1,4 +1,4 @@
-FROM docker://docker.io/python:3.9
+FROM python:3.9
 
 COPY ./app /app
 

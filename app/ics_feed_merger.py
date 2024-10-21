@@ -8,12 +8,15 @@
 
 
 from flask import Flask, Response, request
-from typing import List
+from typing import List, Final
 import requests
 import re
+import os
+
+
+public_host:Final = os.environ.get("GLOBAL_IFM_HOST", "localhost:5000")
 
 app = Flask(__name__)
-
 
 def get_urls(request) -> List[str]:
     i = 0
@@ -52,6 +55,7 @@ def serve_merged_callendar(calendars: List[str]) -> Response:
 def serve_config_page() -> Response:
     config_page_file = open('config_page.html', 'r')
     config_page = config_page_file.read()
+    config_page = config_page.replace("$$GLOBAL_IFM_HOST$$", public_host)
     return Response(config_page)
 
 

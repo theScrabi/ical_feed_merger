@@ -29,13 +29,22 @@ def get_urls(request) -> List[str]:
         i += 1
     return urls
 
+def is_ics_url_ok(url:str) -> bool:
+    headers = requests.head(url).headers
+    content_type = headers['Content-Type'].split(';')
+    return content_type[0] == 'text/calendar'
+
+
 def load_ics(url:str) -> str:
-    r = requests.get(re.sub(r'^webcal', 'https', url))
+    r = requests.get(url)
     return r.text
 
 def get_all_calendars(urls:List[str]) -> List[str]:
     calendars:List[str] = []
     for url in urls:
+        url = re.sub(r'^webcal', 'https', url)
+        if(not is_ics_url_ok(url)):
+            raise Exception(f"Url {url} is not supported iCal feeed.")
         ics = load_ics(url)
         calendars.append(ics)
     return calendars

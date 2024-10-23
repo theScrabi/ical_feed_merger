@@ -50,7 +50,7 @@ def get_all_calendars(urls:List[str]) -> List[str]:
     return calendars
 
 def merge_calendars(calendars:List[str]) -> str:
-    stripped_calendars = map(lambda c: c.replace('BEGIN:VCALENDAR\r\n', '').replace('END:VCALENDAR\r\n', ''), calendars)
+    stripped_calendars = map(lambda c: c.replace('BEGIN:VCALENDAR\r\n', '').replace('END:VCALENDAR\r\n', '').replace('END:VCALENDAR', ''), calendars)
     merged_calendar = ''.join(list(stripped_calendars))
     return "BEGIN:VCALENDAR\r\n" + merged_calendar + "END:VCALENDAR\r\n"
 

@@ -8,6 +8,7 @@
 
 
 from flask import Flask, Response, request
+from urllib.parse import urlparse
 from typing import List, Final
 import requests
 import re
@@ -29,7 +30,13 @@ def get_urls(request) -> List[str]:
         i += 1
     return urls
 
+def is_host_ok(url:str) -> bool:
+    hostname = urlparse(url).hostname
+    return hostname != None and hostname.endswith("caldav.icloud.com")
+
 def is_ics_url_ok(url:str) -> bool:
+    if is_host_ok(url):
+        return True
     headers = requests.head(url).headers
     content_type = headers['Content-Type'].split(';')
     return content_type[0] == 'text/calendar'

@@ -69,7 +69,7 @@ def serve_config_page() -> Response:
 
 
 @app.route("/")
-def hello_world():
+def merge_calendars_entry():
     calendars = get_all_calendars(get_urls(request))
     if len(calendars) == 0:
         resp = serve_config_page()

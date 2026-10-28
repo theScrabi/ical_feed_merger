@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.13-slim
 
 
 ADD requirements.txt /requirements.txt
@@ -12,4 +12,4 @@ WORKDIR /app
 EXPOSE 5000
 USER nobody
 
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "wsgi:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "--workers", "4", "--timeout", "30", "wsgi:app"]

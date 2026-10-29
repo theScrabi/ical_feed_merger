@@ -32,6 +32,42 @@
     3. Copy your combined feed url into the field above to edit it.
   </p>
 
+
+  <h1>ICAL Calendar feed filter.</h1>
+  <div id="filter_config">
+    <p>
+      1. Enter the ical calendar feed you want to filter:
+      <br>
+      <input id="filter_src_url">
+    </p>
+    <p>
+      2. Add filters. The first filter that matches an event decides whether the event is kept or removed.
+    </p>
+    <ol id="filter_list">
+
+    </ol>
+    <p>
+      <button id="add_filter_button" type="button">Add filter</button>
+      <br><br>
+      Events that match no filter are:
+      <select id="filter_default_action">
+        <option value="keep">kept</option>
+        <option value="remove">removed</option>
+      </select>
+      <br>
+      Timezone used for date/time filters:
+      <input id="filter_timezone">
+    </p>
+  </div>
+
+  <p>
+    3. Then grab this filtered feed and subscribe to it:
+    <br>
+    <input id='filtered_feed_url'>
+    <br><br>
+    4. Copy your filtered feed url into the field above to edit it.
+  </p>
+
   <p>
   This tool is open source <a href="https://github.com/theScrabi/ical_feed_merger/blob/master/LICENSE">(AGPLv3)</a> and can be found on <a href="https://github.com/theScrabi/ical_feed_merger">GitHub</a>.
   </p>
@@ -139,6 +175,252 @@
     });
 
     reconstructOriginalFeedUrls();
+
+  </script>
+
+  <script>
+    const filter_config = document.getElementById("filter_config");
+    const filter_src_url = document.getElementById("filter_src_url");
+    const filter_list = document.getElementById("filter_list");
+    const add_filter_button = document.getElementById("add_filter_button");
+    const filter_default_action = document.getElementById("filter_default_action");
+    const filter_timezone = document.getElementById("filter_timezone");
+    const filtered_feed_url = document.getElementById("filtered_feed_url");
+
+    const TEXT_PROPERTIES = [
+      ["SUMMARY", "Title"], ["DESCRIPTION", "Description"], ["LOCATION", "Location"],
+      ["CATEGORIES", "Categories"], ["STATUS", "Status"], ["ORGANIZER", "Organizer"],
+      ["URL", "URL"], ["UID", "UID"]
+    ];
+    const DATE_PROPERTIES = [["DTSTART", "Start date/time"], ["DTEND", "End date/time"]];
+    const TEXT_OPS = [["contains", "contains"], ["equals", "equals"], ["regex", "matches regex"]];
+    const DATE_OPS = [
+      ["time", "time of day is between"], ["weekday", "day of week is"],
+      ["monthday", "day of month is"], ["month", "month is"],
+      ["yearday", "day of year is"], ["allday", "is an all-day event"]
+    ];
+    const WEEKDAYS = [["MO", "Mon"], ["TU", "Tue"], ["WE", "Wed"], ["TH", "Thu"], ["FR", "Fri"], ["SA", "Sat"], ["SU", "Sun"]];
+    const MONTHS = [
+      ["1", "Jan"], ["2", "Feb"], ["3", "Mar"], ["4", "Apr"], ["5", "May"], ["6", "Jun"],
+      ["7", "Jul"], ["8", "Aug"], ["9", "Sep"], ["10", "Oct"], ["11", "Nov"], ["12", "Dec"]
+    ];
+
+    function isDateProperty(property) {
+      return DATE_PROPERTIES.some(p => p[0] === property);
+    }
+
+    function createSelect(options, value) {
+      const select_elm = document.createElement("select");
+      for (const [option_value, label] of options) {
+        const option_elm = document.createElement("option");
+        option_elm.value = option_value;
+        option_elm.textContent = label;
+        select_elm.appendChild(option_elm);
+      }
+      if (options.some(o => o[0] === value)) {
+        select_elm.value = value;
+      }
+      return select_elm;
+    }
+
+    function createInput(type, value, placeholder) {
+      const input_elm = document.createElement("input");
+      input_elm.type = type;
+      input_elm.value = value;
+      input_elm.placeholder = placeholder;
+      return input_elm;
+    }
+
+    function createCheckboxes(options, value) {
+      const checked_values = value.split(",").map(v => v.trim().toUpperCase());
+      const checkbox_elms = [];
+      const span_elm = document.createElement("span");
+      for (const [option_value, label] of options) {
+        const label_elm = document.createElement("label");
+        const checkbox_elm = createInput("checkbox", option_value, "");
+        checkbox_elm.checked = checked_values.includes(option_value);
+        checkbox_elms.push(checkbox_elm);
+        label_elm.append(checkbox_elm, label + " ");
+        span_elm.appendChild(label_elm);
+      }
+      const read = () => checkbox_elms.filter(c => c.checked).map(c => c.value).join(",") || null;
+      return [span_elm, read];
+    }
+
+    function createButton(label, title, on_click) {
+      const button_elm = document.createElement("button");
+      button_elm.type = "button";
+      button_elm.textContent = label;
+      button_elm.title = title;
+      button_elm.addEventListener("click", function () {
+        on_click();
+        buildFilterUrl();
+      });
+      return button_elm;
+    }
+
+    // Builds the part of a filter item that depends on the operation.
+    // Returns the element and a function that reads the filter value,
+    // or null if the value is incomplete.
+    function createValueInput(op, value) {
+      if (op === "time") {
+        const [from, to] = value.split("-");
+        const from_elm = createInput("time", from || "", "");
+        const to_elm = createInput("time", to || "", "");
+        const span_elm = document.createElement("span");
+        span_elm.append(from_elm, " and ", to_elm);
+        const read = () => (from_elm.value && to_elm.value) ? from_elm.value + "-" + to_elm.value : null;
+        return [span_elm, read];
+      }
+      if (op === "weekday") {
+        return createCheckboxes(WEEKDAYS, value);
+      }
+      if (op === "month") {
+        return createCheckboxes(MONTHS, value);
+      }
+      if (op === "allday") {
+        return [document.createElement("span"), () => ""];
+      }
+      const placeholders = { monthday: "e.g. 1,15,20-31", yearday: "e.g. 1-7,359-366", regex: "e.g. (?i)meeting|call" };
+      const input_elm = createInput("text", value, placeholders[op] || "");
+      return [input_elm, () => input_elm.value.length !== 0 ? input_elm.value : null];
+    }
+
+    function createFilterItem(action, property, op, value) {
+      const li_elm = document.createElement("li");
+
+      const text_properties = TEXT_PROPERTIES.slice();
+      if (!isDateProperty(property) && !text_properties.some(p => p[0] === property)) {
+        // keep properties restored from a url that the ui doesn't offer
+        text_properties.push([property, property]);
+      }
+      const property_select = createSelect(text_properties.concat(DATE_PROPERTIES), property);
+      const action_select = createSelect([["remove", "Remove"], ["keep", "Keep"]], action);
+      const op_span = document.createElement("span");
+      const value_span = document.createElement("span");
+      let op_select = null;
+      let readValue = () => null;
+
+      function renderValueInput(value) {
+        const [value_elm, read] = createValueInput(op_select.value, value);
+        value_span.replaceChildren(value_elm);
+        readValue = read;
+      }
+
+      function renderOpSelect(op, value) {
+        op_select = createSelect(isDateProperty(property_select.value) ? DATE_OPS : TEXT_OPS, op);
+        op_select.addEventListener("change", () => renderValueInput(""));
+        op_span.replaceChildren(op_select);
+        renderValueInput(value);
+      }
+
+      property_select.addEventListener("change", function () {
+        // keep the operation and value if they still fit the new property
+        if (isDateProperty(property_select.value) === (DATE_OPS.some(o => o[0] === op_select.value))) {
+          return;
+        }
+        renderOpSelect("", "");
+      });
+
+      renderOpSelect(op, value);
+
+      li_elm.getFilterParam = function () {
+        const filter_value = readValue();
+        if (filter_value === null) {
+          return null;
+        }
+        return [action_select.value, property_select.value, op_select.value, filter_value].join(":");
+      };
+      li_elm.isDateFilter = () => isDateProperty(property_select.value);
+
+      li_elm.append(
+        action_select, " events where ", property_select, " ", op_span, " ", value_span, " ",
+        createButton("↑", "Move up", function () {
+          if (li_elm.previousElementSibling) {
+            filter_list.insertBefore(li_elm, li_elm.previousElementSibling);
+          }
+        }),
+        createButton("↓", "Move down", function () {
+          if (li_elm.nextElementSibling) {
+            filter_list.insertBefore(li_elm.nextElementSibling, li_elm);
+          }
+        }),
+        createButton("✕", "Remove filter", () => li_elm.remove())
+      );
+      filter_list.appendChild(li_elm);
+    }
+
+    // Keep ':', ',' and '/' readable, they are allowed in a query string.
+    function encodeFilterParam(value) {
+      return encodeURIComponent(value).replace(/%3A/gi, ":").replace(/%2C/gi, ",").replace(/%2F/gi, "/");
+    }
+
+    function buildFilterUrl() {
+      const base_url = "https://$$GLOBAL_IFM_HOST$$/filter?"
+      let parameter_list = ["src=" + encodeURIComponent(filter_src_url.value)];
+      let filter_parameter_list = [];
+      let has_date_filter = false;
+      for (const li_elm of filter_list.children) {
+        const filter_param = li_elm.getFilterParam();
+        if (filter_param !== null) {
+          filter_parameter_list.push("f" + filter_parameter_list.length + "=" + encodeFilterParam(filter_param));
+          has_date_filter = has_date_filter || li_elm.isDateFilter();
+        }
+      }
+      if (filter_default_action.value !== "keep") {
+        parameter_list.push("d=" + filter_default_action.value);
+      }
+      if (has_date_filter && filter_timezone.value.length !== 0) {
+        parameter_list.push("tz=" + encodeFilterParam(filter_timezone.value));
+      }
+      filtered_feed_url.value = base_url + parameter_list.concat(filter_parameter_list).join("&");
+    }
+
+    function reconstructFilterUi() {
+      filter_list.innerHTML = "";
+
+      try {
+        const url_params = new URL(filtered_feed_url.value).searchParams;
+        filter_src_url.value = url_params.get("src") || "";
+        filter_default_action.value = url_params.get("d") === "remove" ? "remove" : "keep";
+        if (url_params.get("tz")) {
+          filter_timezone.value = url_params.get("tz");
+        }
+
+        let param_count = 0;
+        while (true) {
+          const param = url_params.get("f" + param_count);
+          if (param == null) {
+            break;
+          }
+          const [action, property, op, ...value] = param.split(":");
+          if (op !== undefined) {
+            createFilterItem(action.toLowerCase(), property.toUpperCase(), op.toLowerCase(), value.join(":"));
+          }
+          param_count++;
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    }
+
+    add_filter_button.addEventListener("click", function () {
+      createFilterItem("remove", "SUMMARY", "contains", "");
+      buildFilterUrl();
+    });
+
+    filter_config.addEventListener("input", buildFilterUrl);
+    filter_config.addEventListener("change", buildFilterUrl);
+
+    filtered_feed_url.addEventListener("input", function (event) {
+      reconstructFilterUi();
+    });
+
+    try {
+      filter_timezone.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (e) {
+      console.log(e)
+    }
 
   </script>
 
